@@ -652,10 +652,8 @@
             strokes.forEach(stroke => {
                 if (stroke.type === 'action') return; 
                 if (stroke.type === 'fill') {
-                    // 페인트통 fill 작업 재생: 현재까지의 그림을 합성 후 fill 실행
-                    ctx.drawImage(offscreenCanvas, 0, 0);
-                    offCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-                    floodFill(stroke.x, stroke.y, stroke.color);
+                    // 페인트통: 오프스크린 캔버스(그림 레이어)만 기준으로 fill
+                    floodFillOnOffscreen(stroke.x, stroke.y, stroke.color);
                     return;
                 }
                 if (!stroke.points || stroke.points.length < 2) return;
@@ -878,6 +876,59 @@
             return c1.r === c2.r && c1.g === c2.g && c1.b === c2.b;
         }
 
+        // --- 오프스크린 캔버스(그림 레이어)에서만 Flood Fill ---
+        function floodFillOnOffscreen(x, y, fillColor) {
+            x = Math.floor(x);
+            y = Math.floor(y);
+            
+            // 오프스크린 캔버스(그림 레이어)의 이미지 데이터
+            const offImageData = offCtx.getImageData(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+            const offData = offImageData.data;
+            
+            // 클릭한 위치의 색상 (그림 레이어 기준)
+            const targetColor = getPixelColor(offData, x, y);
+            
+            // 채울 색상을 RGB로 변환
+            const fill = hexToRgb(fillColor);
+            
+            // 같은 색이면 채우지 않음
+            if (colorsMatch(targetColor, fill) && targetColor.a === 255) return;
+            
+            // BFS를 사용한 Flood Fill
+            const queue = [{x, y}];
+            const visited = new Set();
+            
+            while (queue.length > 0) {
+                const {x: cx, y: cy} = queue.shift();
+                const key = `${cx},${cy}`;
+                
+                if (visited.has(key)) continue;
+                if (cx < 0 || cx >= offscreenCanvas.width || cy < 0 || cy >= offscreenCanvas.height) continue;
+                
+                // 그림 레이어의 색상으로 영역 판단
+                const currentColor = getPixelColor(offData, cx, cy);
+                if (!colorsMatchWithAlpha(currentColor, targetColor)) continue;
+                
+                visited.add(key);
+                
+                // 오프스크린 캔버스에 fill
+                setPixelColor(offData, cx, cy, fill);
+                
+                // 4방향 탐색
+                queue.push({x: cx + 1, y: cy});
+                queue.push({x: cx - 1, y: cy});
+                queue.push({x: cx, y: cy + 1});
+                queue.push({x: cx, y: cy - 1});
+            }
+            
+            offCtx.putImageData(offImageData, 0, 0);
+        }
+        
+        // 알파값 포함 색상 비교
+        function colorsMatchWithAlpha(c1, c2) {
+            return c1.r === c2.r && c1.g === c2.g && c1.b === c2.b && c1.a === c2.a;
+        }
+
         // --- 그리기 이벤트 ---
         container.addEventListener('pointerdown', startDrawing);
         container.addEventListener('pointermove', draw);
@@ -905,13 +956,13 @@
                 lastClearRedoSnapshot = null;
                 if (removedStrokes.length > 0) removedStrokes = [];
                 
-                floodFill(x, y, currentColor);
                 strokes.push({
                     type: 'fill',
                     x: x,
                     y: y,
                     color: currentColor
                 });
+                render();
                 return;
             }
             
