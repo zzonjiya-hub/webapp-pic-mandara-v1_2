@@ -602,21 +602,24 @@
         
         directColorPicker.addEventListener('input', function(e) {
             const color = e.target.value;
+            // 브러시 색상만 실시간 미리보기 (배경색은 성능 문제로 제외)
             if (directPickerMode === 'brush') {
                 customSwatchColor = color;
                 customSwatchElement.style.backgroundColor = color;
                 setColor(color, customSwatchElement);
                 customSwatchElement.classList.add('active');
-            } else {
-                // 배경색 실시간 미리보기
+            }
+        });
+        
+        // 색상 선택 완료 시
+        directColorPicker.addEventListener('change', function(e) {
+            const color = e.target.value;
+            // 배경색은 선택 완료 시에만 적용
+            if (directPickerMode === 'bg') {
                 canvasBgColor = color;
                 backgroundImage = null;
                 render();
             }
-        });
-        
-        // 색상 선택 완료 시 (확인/취소 모두)
-        directColorPicker.addEventListener('change', function(e) {
             setTimeout(() => { isColorPickerOpen = false; }, 100);
         });
         
