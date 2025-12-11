@@ -1130,17 +1130,6 @@
                     
                     tCtx.drawImage(img, x, y, newW, newH);
 
-                    const imageData = tCtx.getImageData(0, 0, canvasSize, canvasSize);
-                    const data = imageData.data;
-
-                    for (let i = 0; i < data.length; i += 4) {
-                        data[i]     = Math.round(data[i] / 51) * 51;     
-                        data[i + 1] = Math.round(data[i + 1] / 51) * 51; 
-                        data[i + 2] = Math.round(data[i + 2] / 51) * 51; 
-                    }
-
-                    tCtx.putImageData(imageData, 0, 0);
-
                     const finalImg = new Image();
                     finalImg.onload = function() {
                         backgroundImage = finalImg;
